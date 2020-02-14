@@ -4,7 +4,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	. "github.com/tryor/winapi"
+	. "github.com/leibnewton/winapi"
 )
 
 var (

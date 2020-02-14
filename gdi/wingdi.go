@@ -3,7 +3,7 @@ package gdi
 import (
 	"unsafe"
 
-	. "github.com/tryor/winapi"
+	. "github.com/leibnewton/winapi"
 )
 
 const (
