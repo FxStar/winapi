@@ -1,12 +1,16 @@
 package winapi
 
+import (
+	"github.com/leibnewton/winapi/winspool"
+)
+
 type (
 	HANDLE    uintptr
 	HWND      = HANDLE
 	HMENU     = HANDLE
 	HMODULE   = HANDLE
 	HINSTANCE = HANDLE
-	HDC       = HANDLE
+	HDC       = winspool.HDC
 	HRGN      = HANDLE
 	HBRUSH    = HANDLE
 	HICON     = HANDLE
