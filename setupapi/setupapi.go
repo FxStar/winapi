@@ -216,3 +216,24 @@ func (hDevs *HDEVINFO) GetHardwareId() (string, error) { // e.g.: USB\VID_04F9&P
 	}
 	return syscall.UTF16ToString(buff), nil
 }
+
+type HDevice syscall.Handle
+
+func Open(devicePath string) (HDevice, error) {
+	name, err := syscall.UTF16PtrFromString(devicePath)
+	if err != nil {
+		return 0, err
+	}
+	h, err := syscall.CreateFile(name, syscall.GENERIC_WRITE, syscall.FILE_SHARE_READ, nil, syscall.OPEN_ALWAYS, syscall.FILE_ATTRIBUTE_NORMAL, 0)
+	return HDevice(h), err
+}
+
+func (hd HDevice) Close() error {
+	return syscall.CloseHandle(syscall.Handle(hd))
+}
+
+func (hd HDevice) Write(data []byte) (int, error) {
+	var written uint32
+	err := syscall.WriteFile(syscall.Handle(hd), data, &written, nil)
+	return int(written), err
+}
