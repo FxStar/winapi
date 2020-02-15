@@ -23,6 +23,9 @@ package setupapi
 // reference: https://github.com/distatus/battery battery_windows.go
 
 import (
+	"errors"
+	"fmt"
+	"strings"
 	"syscall"
 	"unsafe"
 
@@ -30,11 +33,12 @@ import (
 )
 
 var (
-	setupapi                         = syscall.NewLazyDLL("setupapi.dll")
-	setupDiGetClassDevsW             = setupapi.NewProc("SetupDiGetClassDevsW")
-	setupDiEnumDeviceInterfaces      = setupapi.NewProc("SetupDiEnumDeviceInterfaces")
-	setupDiGetDeviceInterfaceDetailW = setupapi.NewProc("SetupDiGetDeviceInterfaceDetailW")
-	setupDiDestroyDeviceInfoList     = setupapi.NewProc("SetupDiDestroyDeviceInfoList")
+	setupapi                          = syscall.NewLazyDLL("setupapi.dll")
+	setupDiGetClassDevsW              = setupapi.NewProc("SetupDiGetClassDevsW")
+	setupDiEnumDeviceInterfaces       = setupapi.NewProc("SetupDiEnumDeviceInterfaces")
+	setupDiGetDeviceInterfaceDetailW  = setupapi.NewProc("SetupDiGetDeviceInterfaceDetailW")
+	setupDiDestroyDeviceInfoList      = setupapi.NewProc("SetupDiDestroyDeviceInfoList")
+	setupDiGetDeviceRegistryPropertyW = setupapi.NewProc("SetupDiGetDeviceRegistryPropertyW")
 )
 
 // Flags controlling what is included in the device information set built by SetupDiGetClassDevs
@@ -44,6 +48,48 @@ const (
 	DIGCF_ALLCLASSES      = 0x00000004
 	DIGCF_PROFILE         = 0x00000008
 	DIGCF_DEVICEINTERFACE = 0x00000010
+)
+
+// Device registry property codes
+const (
+	SPDRP_DEVICEDESC                  = 0x00000000 // DeviceDesc (R/W)
+	SPDRP_HARDWAREID                  = 0x00000001 // HardwareID (R/W)
+	SPDRP_COMPATIBLEIDS               = 0x00000002 // CompatibleIDs (R/W)
+	SPDRP_UNUSED0                     = 0x00000003 // unused
+	SPDRP_SERVICE                     = 0x00000004 // Service (R/W)
+	SPDRP_UNUSED1                     = 0x00000005 // unused
+	SPDRP_UNUSED2                     = 0x00000006 // unused
+	SPDRP_CLASS                       = 0x00000007 // Class (R--tied to ClassGUID)
+	SPDRP_CLASSGUID                   = 0x00000008 // ClassGUID (R/W)
+	SPDRP_DRIVER                      = 0x00000009 // Driver (R/W)
+	SPDRP_CONFIGFLAGS                 = 0x0000000A // ConfigFlags (R/W)
+	SPDRP_MFG                         = 0x0000000B // Mfg (R/W)
+	SPDRP_FRIENDLYNAME                = 0x0000000C // FriendlyName (R/W)
+	SPDRP_LOCATION_INFORMATION        = 0x0000000D // LocationInformation (R/W)
+	SPDRP_PHYSICAL_DEVICE_OBJECT_NAME = 0x0000000E // PhysicalDeviceObjectName (R)
+	SPDRP_CAPABILITIES                = 0x0000000F // Capabilities (R)
+	SPDRP_UI_NUMBER                   = 0x00000010 // UiNumber (R)
+	SPDRP_UPPERFILTERS                = 0x00000011 // UpperFilters (R/W)
+	SPDRP_LOWERFILTERS                = 0x00000012 // LowerFilters (R/W)
+	SPDRP_BUSTYPEGUID                 = 0x00000013 // BusTypeGUID (R)
+	SPDRP_LEGACYBUSTYPE               = 0x00000014 // LegacyBusType (R)
+	SPDRP_BUSNUMBER                   = 0x00000015 // BusNumber (R)
+	SPDRP_ENUMERATOR_NAME             = 0x00000016 // Enumerator Name (R)
+	SPDRP_SECURITY                    = 0x00000017 // Security (R/W, binary form)
+	SPDRP_SECURITY_SDS                = 0x00000018 // Security (W, SDS form)
+	SPDRP_DEVTYPE                     = 0x00000019 // Device Type (R/W)
+	SPDRP_EXCLUSIVE                   = 0x0000001A // Device is exclusive-access (R/W)
+	SPDRP_CHARACTERISTICS             = 0x0000001B // Device Characteristics (R/W)
+	SPDRP_ADDRESS                     = 0x0000001C // Device Address (R)
+	SPDRP_UI_NUMBER_DESC_FORMAT       = 0x0000001D // UiNumberDescFormat (R/W)
+	SPDRP_DEVICE_POWER_DATA           = 0x0000001E // Device Power Data (R)
+	SPDRP_REMOVAL_POLICY              = 0x0000001F // Removal Policy (R)
+	SPDRP_REMOVAL_POLICY_HW_DEFAULT   = 0x00000020 // Hardware Removal Policy (R)
+	SPDRP_REMOVAL_POLICY_OVERRIDE     = 0x00000021 // Removal Policy Override (RW)
+	SPDRP_INSTALL_STATE               = 0x00000022 // Device Install State (R)
+	SPDRP_LOCATION_PATHS              = 0x00000023 // Device Location Paths (R)
+	SPDRP_BASE_CONTAINERID            = 0x00000024 // Base ContainerID (R)
+	SPDRP_MAXIMUM_PROPERTY            = 0x00000025 // Upper bound on ordinals
 )
 
 type guid struct {
@@ -76,12 +122,17 @@ var guidDevicePrinter = guid{
 
 type HDEVINFO struct {
 	h          uintptr
-	devicePath string
+	devicePath string // e.g.: \\?\usb#vid_04f9&pid_2058#000f9z132168#{28d78fad-5a12-11d1-ae5b-0000f803a8c2}
 	devInfo    spDevInfoData
 }
 
 func (hDevs *HDEVINFO) DevicePath() string {
 	return hDevs.devicePath
+}
+
+func (hDevs *HDEVINFO) GetVidPid() (vid, pid uint16, err error) {
+	_, err = fmt.Sscanf(strings.ToLower(hDevs.devicePath), `\\?\usb#vid_%04x&pid_%04x#`, &vid, &pid)
+	return
 }
 
 func GetClassDevs() (*HDEVINFO, error) {
@@ -130,4 +181,38 @@ func (hDevs *HDEVINFO) EnumDeviceInterfaces(idx int) (bool, error) {
 	}
 	hDevs.devicePath = syscall.UTF16ToString(pDevDetail[2:])
 	return true, nil
+}
+
+func (hDevs *HDEVINFO) getDeviceRegistryProperty(property int) ([]uint16, error) {
+	if hDevs.devInfo.DevInst == 0 {
+		return nil, errors.New("invalid device")
+	}
+	dataType := 0
+	var cbRequired uint32
+	_, _, err := setupDiGetDeviceRegistryPropertyW.Call(uintptr(hDevs.h), uintptr(unsafe.Pointer(&hDevs.devInfo)), uintptr(property), uintptr(unsafe.Pointer(&dataType)), 0, 0, uintptr(unsafe.Pointer(&cbRequired)))
+	if err != winspool.ERROR_INSUFFICIENT_BUFFER {
+		return nil, err
+	}
+	pBuff := make([]uint16, cbRequired/2)
+	r1, _, err := setupDiGetDeviceRegistryPropertyW.Call(uintptr(hDevs.h), uintptr(unsafe.Pointer(&hDevs.devInfo)), uintptr(property), uintptr(unsafe.Pointer(&dataType)), uintptr(unsafe.Pointer(&pBuff[0])), uintptr(cbRequired), uintptr(unsafe.Pointer(&cbRequired)))
+	if r1 == 0 {
+		return nil, err
+	}
+	return pBuff, nil
+}
+
+func (hDevs *HDEVINFO) GetLocation() (string, error) { // e.g.: Port_#0001.Hub_#0001
+	buff, err := hDevs.getDeviceRegistryProperty(SPDRP_LOCATION_INFORMATION)
+	if err != nil {
+		return "", err
+	}
+	return syscall.UTF16ToString(buff), nil
+}
+
+func (hDevs *HDEVINFO) GetHardwareId() (string, error) { // e.g.: USB\VID_04F9&PID_2058&REV_0100
+	buff, err := hDevs.getDeviceRegistryProperty(SPDRP_HARDWAREID)
+	if err != nil {
+		return "", err
+	}
+	return syscall.UTF16ToString(buff), nil
 }

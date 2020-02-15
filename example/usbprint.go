@@ -21,6 +21,19 @@ func main() {
 		if !ok {
 			break
 		}
-		log.Printf("  [%d] %s", idx, hDev.DevicePath())
+		vid, pid, err := hDev.GetVidPid()
+		if err != nil {
+			log.Printf("get hardwareId failed: %v", err)
+		}
+		location, err := hDev.GetLocation()
+		if err != nil {
+			log.Printf("get location failed: %v", err)
+		}
+		hardwareId, err := hDev.GetHardwareId()
+		if err != nil {
+			log.Printf("get hardwareId failed: %v", err)
+		}
+		log.Printf("  [%d] %s VID:%04X PID:%04X location: %s hardwareid: %s",
+			idx, hDev.DevicePath(), vid, pid, location, hardwareId)
 	}
 }
