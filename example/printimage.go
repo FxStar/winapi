@@ -9,6 +9,11 @@ import (
 	"github.com/leibnewton/winapi/winspool"
 )
 
+// 打印机设置要点：
+// 1.纸张大小：40mm*30mm（2mm间隔）
+// 2.四个方向边距设置为0.
+// 3.分辨率为300dpi时，使用472*354分辨率的图片
+//   分辨率为200dpi时，使用315*236分辨率的图片
 func main() {
 	// EnumPrinters
 	printers, err := winspool.EnumPrinters4()
@@ -40,7 +45,7 @@ func main() {
 	hdcMem := gdi.CreateCompatibleDC(winapi.HWND(prn))
 	defer hdcMem.DeleteDC()
 
-	img, err := winapi.LoadImageFromFile(`C:\\workspace\\Sandbox\\WinSpoolSample\\bmp\\landscape.bmp`, winapi.IMAGE_BITMAP)
+	img, err := winapi.LoadImageFromFile(`sample.bmp`, winapi.IMAGE_BITMAP)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -56,9 +61,9 @@ func main() {
 	}
 	defer prn.EndPage()
 
-	// use StretchBlt to scale
-	imgWidth := 621
-	imgHeight := 484
+	// Alternative: use StretchBlt to scale
+	imgWidth := 480 // width and height should be the real values of the picture
+	imgHeight := 360
 	gdi.BitBlt(prn, 0, 0, imgWidth, imgHeight,
 		hdcMem, 0, 0, gdi.SRCCOPY)
 }
