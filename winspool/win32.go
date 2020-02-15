@@ -205,6 +205,25 @@ func (pi *PrinterInfo2) GetStatus() uint32 {
 	return pi.status
 }
 
+// PRINTER_INFO_4 struct.
+type PrinterInfo4 struct {
+	pPrinterName *uint16
+	pServerName  *uint16
+	attributes   uint32
+}
+
+func (pi *PrinterInfo4) GetPrinterName() string {
+	return utf16PtrToString(pi.pPrinterName)
+}
+
+func (pi *PrinterInfo4) IsLocal() bool {
+	return (pi.attributes & PRINTER_ATTRIBUTE_LOCAL) > 0
+}
+
+func (pi *PrinterInfo4) IsOnline() bool {
+	return (pi.attributes & PRINTER_ATTRIBUTE_WORK_OFFLINE) == 0
+}
+
 // PRINTER_ENUM_VALUES struct.
 type PrinterEnumValues struct {
 	pValueName  *uint16
@@ -591,15 +610,15 @@ func binaryRegValueToBytes(data uintptr, size uint32) []byte {
 	return *(*[]byte)(unsafe.Pointer(&hdr))
 }
 
-func enumPrinters(level uint32) ([]byte, uint32, error) {
+func enumPrinters(flags, level uint32) ([]byte, uint32, error) {
 	var cbBuf, pcReturned uint32
-	_, _, err := enumPrintersProc.Call(PRINTER_ENUM_LOCAL, 0, uintptr(level), 0, 0, uintptr(unsafe.Pointer(&cbBuf)), uintptr(unsafe.Pointer(&pcReturned)))
+	_, _, err := enumPrintersProc.Call(uintptr(flags), 0, uintptr(level), 0, 0, uintptr(unsafe.Pointer(&cbBuf)), uintptr(unsafe.Pointer(&pcReturned)))
 	if err != ERROR_INSUFFICIENT_BUFFER {
 		return nil, 0, err
 	}
 
 	var pPrinterEnum []byte = make([]byte, cbBuf)
-	r1, _, err := enumPrintersProc.Call(PRINTER_ENUM_LOCAL, 0, uintptr(level), uintptr(unsafe.Pointer(&pPrinterEnum[0])), uintptr(cbBuf), uintptr(unsafe.Pointer(&cbBuf)), uintptr(unsafe.Pointer(&pcReturned)))
+	r1, _, err := enumPrintersProc.Call(uintptr(flags), 0, uintptr(level), uintptr(unsafe.Pointer(&pPrinterEnum[0])), uintptr(cbBuf), uintptr(unsafe.Pointer(&cbBuf)), uintptr(unsafe.Pointer(&pcReturned)))
 	if r1 == 0 {
 		return nil, 0, err
 	}
@@ -608,7 +627,7 @@ func enumPrinters(level uint32) ([]byte, uint32, error) {
 }
 
 func EnumPrinters2() ([]PrinterInfo2, error) {
-	pPrinterEnum, pcReturned, err := enumPrinters(2)
+	pPrinterEnum, pcReturned, err := enumPrinters(PRINTER_ENUM_LOCAL, 2)
 	if err != nil {
 		return nil, err
 	}
@@ -619,6 +638,21 @@ func EnumPrinters2() ([]PrinterInfo2, error) {
 		Cap:  int(pcReturned),
 	}
 	printers := *(*[]PrinterInfo2)(unsafe.Pointer(&hdr))
+	return printers, nil
+}
+
+func EnumPrinters4() ([]PrinterInfo4, error) {
+	pPrinterEnum, pcReturned, err := enumPrinters(PRINTER_ENUM_LOCAL|PRINTER_ENUM_CONNECTIONS, 4)
+	if err != nil {
+		return nil, err
+	}
+
+	hdr := reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(&pPrinterEnum[0])),
+		Len:  int(pcReturned),
+		Cap:  int(pcReturned),
+	}
+	printers := *(*[]PrinterInfo4)(unsafe.Pointer(&hdr))
 	return printers, nil
 }
 

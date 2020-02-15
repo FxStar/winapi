@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/leibnewton/winapi"
@@ -9,8 +10,28 @@ import (
 )
 
 func main() {
-	// TODO: EnumPrinters
-	prn, err := winspool.CreateDC("Microsoft XPS Document Writer", nil)
+	// EnumPrinters
+	printers, err := winspool.EnumPrinters4()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(printers) == 0 {
+		log.Printf("NO PRINTERS FOUND.")
+		return
+	}
+	log.Printf("Found printers:")
+	for i, p := range printers {
+		log.Printf("  [%d] %s\t(local=%v, online=%v)", i, p.GetPrinterName(), p.IsLocal(), p.IsOnline())
+	}
+	fmt.Printf("Which printer to select [0-%d]: ", len(printers)-1)
+	index := 0
+	if _, err = fmt.Scanln(&index); err != nil {
+		log.Fatal(err)
+	}
+	printerName := printers[index].GetPrinterName()
+
+	// Printing
+	prn, err := winspool.CreateDC(printerName, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
