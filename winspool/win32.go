@@ -59,6 +59,7 @@ const (
 	NO_ERROR                  = syscall.Errno(0)
 	ERROR_INVALID_PARAMETER   = syscall.Errno(87)
 	ERROR_INSUFFICIENT_BUFFER = syscall.Errno(122)
+	ERROR_NO_MORE_ITEMS       = syscall.Errno(259)
 )
 
 // First parameter to EnumPrinters().
