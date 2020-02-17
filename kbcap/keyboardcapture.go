@@ -99,6 +99,7 @@ func CodeToChar(hookStruct *KBDLLHOOKSTRUCT) (byte, bool) {
 }
 
 var MaxUpdateInterval time.Duration = 3 * time.Second
+var Debug = false
 
 func MonitorKeyboard(callback func(string)) error {
 	var buf bytes.Buffer
@@ -111,20 +112,27 @@ func MonitorKeyboard(callback func(string)) error {
 			if nCode == 0 && wparam == WM_KEYDOWN {
 				kbdstruct := (*KBDLLHOOKSTRUCT)(unsafe.Pointer(lparam))
 				if b, ok := CodeToChar(kbdstruct); ok {
-					if time.Since(lastUpdate) > MaxUpdateInterval {
+					if time.Since(lastUpdate) > MaxUpdateInterval && buf.Len() > 0 {
 						buf.Reset()
+						if Debug {
+							log.Printf("exceed max update interval of %v, reset", MaxUpdateInterval)
+						}
 					}
-					if (b == '\n' || b == '\r') && buf.Len() > 0 {
+					lastUpdate = time.Now()
+					if b != '\n' && b != '\r' {
+						buf.WriteByte(b)
+						if Debug {
+							log.Printf("key pressed: '%c' l=%d", b, buf.Len())
+						}
+					} else if buf.Len() > 0 {
 						if callback != nil {
 							callback(buf.String())
 						}
-						//log.Printf("get line: %s", buf.String())
+						if Debug {
+							log.Printf("get line: '%s'", buf.String())
+						}
 						buf.Reset()
-					} else {
-						buf.WriteByte(b)
-						//log.Printf("key pressed: %c l=%d", b, buf.Len())
 					}
-					lastUpdate = time.Now()
 				}
 			}
 			return keyboardHook.CallNextHookEx(nCode, wparam, lparam)

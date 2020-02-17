@@ -8,7 +8,7 @@ import (
 
 func main() {
 	err := kbcap.MonitorKeyboard(func(line string) {
-		log.Printf("callback get line: %s", line)
+		log.Printf("callback get line: [%s]", line)
 	})
 	if err != nil {
 		log.Fatal(err)
