@@ -4,9 +4,13 @@ package kbcap
 //           https://gist.github.com/sbarratt/3077d5f51288b39665350dc2b9e19694
 
 import (
-	"fmt"
+	"bytes"
+	"log"
 	"syscall"
+	"time"
 	"unsafe"
+
+	"github.com/leibnewton/winapi"
 )
 
 // String returns a human-friendly display name of the hotkey
@@ -17,7 +21,6 @@ var (
 	procSetWindowsHookEx    = user32.NewProc("SetWindowsHookExW")
 	procCallNextHookEx      = user32.NewProc("CallNextHookEx")
 	procUnhookWindowsHookEx = user32.NewProc("UnhookWindowsHookEx")
-	procGetMessage          = user32.NewProc("GetMessageW") // block until a posted message is available for retrieval.
 )
 
 const (
@@ -38,7 +41,7 @@ const (
 )
 
 type (
-	DWORD     uint32
+	DWORD     = uint32
 	WPARAM    uintptr
 	LPARAM    uintptr
 	LRESULT   uintptr
@@ -56,21 +59,6 @@ type KBDLLHOOKSTRUCT struct {
 	Flags       DWORD
 	Time        DWORD
 	DwExtraInfo uintptr
-}
-
-// http://msdn.microsoft.com/en-us/library/windows/desktop/dd162805.aspx
-type POINT struct {
-	X, Y int32
-}
-
-// http://msdn.microsoft.com/en-us/library/windows/desktop/ms644958.aspx
-type MSG struct {
-	Hwnd    HWND
-	Message uint32
-	WParam  uintptr
-	LParam  uintptr
-	Time    uint32
-	Pt      POINT
 }
 
 func SetWindowsHookEx(idHook int, lpfn HOOKPROC, hMod HINSTANCE, dwThreadId DWORD) (HHOOK, error) {
@@ -92,30 +80,60 @@ func (hhk *HHOOK) UnhookWindowsHookEx() bool {
 	return ret != 0
 }
 
-func GetMessage(msg *MSG, hwnd HWND, msgFilterMin uint32, msgFilterMax uint32) int {
-	ret, _, _ := procGetMessage.Call(uintptr(unsafe.Pointer(msg)), uintptr(hwnd), uintptr(msgFilterMin), uintptr(msgFilterMax))
-	return int(ret)
+func GetAnyMessage() { // block
+	winapi.GetMessage(nil, 0, 0, 0)
 }
 
-func GetAnyMessage() bool { // block
-	return GetMessage(nil, 0, 0, 0) != 0 // =0 means WM_QUIT
+const (
+	kShiftKey   = 16
+	kCapitalKey = 20
+)
+
+func CodeToChar(hookStruct *KBDLLHOOKSTRUCT) (byte, bool) {
+	keyStates, _ := winapi.GetKeyboardState()
+	keyStates[kShiftKey] = byte(winapi.GetKeyState(winapi.VK_SHIFT))
+	keyStates[kCapitalKey] = byte(winapi.GetKeyState(winapi.VK_CAPITAL))
+	var char uint16
+	n := winapi.ToAscii(hookStruct.VkCode, hookStruct.ScanCode, keyStates, &char, 0)
+	return byte(char), n == 1
 }
+
+var MaxUpdateInterval time.Duration = 3 * time.Second
 
 func MonitorKeyboard(callback func(string)) error {
+	var buf bytes.Buffer
+	buf.Grow(128)
+	lastUpdate := time.Now()
+
 	var keyboardHook HHOOK
 	keyboardHook, err := SetWindowsHookEx(WH_KEYBOARD_LL,
 		(HOOKPROC)(func(nCode int, wparam WPARAM, lparam LPARAM) LRESULT {
 			if nCode == 0 && wparam == WM_KEYDOWN {
 				kbdstruct := (*KBDLLHOOKSTRUCT)(unsafe.Pointer(lparam))
-				code := byte(kbdstruct.VkCode)
-				fmt.Printf("key pressed:%q\n", code)
-				fmt.Sprintf("%q", code)
+				if b, ok := CodeToChar(kbdstruct); ok {
+					if time.Since(lastUpdate) > MaxUpdateInterval {
+						buf.Reset()
+					}
+					if (b == '\n' || b == '\r') && buf.Len() > 0 {
+						if callback != nil {
+							callback(buf.String())
+						}
+						//log.Printf("get line: %s", buf.String())
+						buf.Reset()
+					} else {
+						buf.WriteByte(b)
+						//log.Printf("key pressed: %c l=%d", b, buf.Len())
+					}
+					lastUpdate = time.Now()
+				}
 			}
 			return keyboardHook.CallNextHookEx(nCode, wparam, lparam)
 		}), 0, 0)
 	if err != nil {
 		return err
 	}
+
+	log.Printf("keyboard monitoring...")
 	go func() {
 		defer keyboardHook.UnhookWindowsHookEx()
 		for {

@@ -109,6 +109,18 @@ var (
 	procGetWindowThreadProcessId = moduser32.NewProc("GetWindowThreadProcessId")
 
 	procRegisterHotKey = moduser32.NewProc("RegisterHotKey")
+
+	procToAscii     = moduser32.NewProc("ToAscii")
+	procGetKeyState = moduser32.NewProc("GetKeyState")
+)
+
+// Virtual Keys, Standard Set
+const (
+	VK_SHIFT   = 0x10
+	VK_CONTROL = 0x11
+	VK_MENU    = 0x12
+	VK_PAUSE   = 0x13
+	VK_CAPITAL = 0x14
 )
 
 //__in_opt HWND hWnd,
@@ -769,4 +781,14 @@ func InvalidateRect(hwnd HWND, lpRectUpdate LPCRECT, bErase BOOL) error {
 	}
 	_, err := Syscall(procInvalidateRect.Addr(), uintptr(hwnd), uintptr(unsafe.Pointer(lpRectUpdate)), uintptr(bErase_))
 	return err
+}
+
+func ToAscii(uVirtKey, uScanCode uint32, lpKeyState []byte, char *uint16, uFlags uint32) int {
+	r1, _, _ := procToAscii.Call(uintptr(uVirtKey), uintptr(uScanCode), uintptr(unsafe.Pointer(&lpKeyState[0])), uintptr(unsafe.Pointer(char)), uintptr(uFlags))
+	return int(r1)
+}
+
+func GetKeyState(uVirtKey uint32) int16 {
+	r1, _, _ := procGetKeyState.Call(uintptr(uVirtKey))
+	return int16(r1)
 }
