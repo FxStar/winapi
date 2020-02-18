@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"image/png"
 	"log"
+	"os"
 
 	"github.com/leibnewton/winapi"
 	"github.com/leibnewton/winapi/gdi"
@@ -45,10 +47,26 @@ func main() {
 	hdcMem := gdi.CreateCompatibleDC(winapi.HWND(prn))
 	defer hdcMem.DeleteDC()
 
-	img, err := winapi.LoadImageFromFile(`sample.bmp`, winapi.IMAGE_BITMAP)
+	//Method 1: use LoadImageFromFile to load disk image
+	//img, err := winapi.LoadImageFromFile(`sample.bmp`, winapi.IMAGE_BITMAP)
+	//imgWidth := 480 // width and height should be the real values of the picture
+	//imgHeight := 360
+
+	// Method 2:
+	f, err := os.Open("sample300.png")
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer f.Close()
+	pngimg, err := png.Decode(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+	img, imgWidth, imgHeight, err := gdi.LoadBitmapFromMemory(pngimg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("create bmp image success, width:%d, height:%d", imgWidth, imgHeight)
 	defer gdi.DeleteObject(img) //When you are finished using a bitmap you loaded without specifying the LR_SHARED flag, you can release its associated memory by calling DeleteObject.
 	gdi.SelectObject(hdcMem, img)
 
@@ -62,8 +80,6 @@ func main() {
 	defer prn.EndPage()
 
 	// Alternative: use StretchBlt to scale
-	imgWidth := 480 // width and height should be the real values of the picture
-	imgHeight := 360
 	gdi.BitBlt(prn, 0, 0, imgWidth, imgHeight,
 		hdcMem, 0, 0, gdi.SRCCOPY)
 }

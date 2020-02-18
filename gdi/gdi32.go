@@ -1,8 +1,12 @@
 package gdi
 
 import (
+	"bytes"
+	"image"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/image/bmp"
 
 	. "github.com/leibnewton/winapi"
 )
@@ -19,12 +23,35 @@ var (
 	procCreateCompatibleBitmap = modgdi32.NewProc("CreateCompatibleBitmap")
 	procCreateDIBSection       = modgdi32.NewProc("CreateDIBSection")
 	procBitBlt                 = modgdi32.NewProc("BitBlt")
+	procSetDIBits              = modgdi32.NewProc("SetDIBits")
 )
+
+type DIBBITMAPINFO struct {
+	bfOffBits uint32
+	BITMAPINFO
+}
 
 func CreateCompatibleDC(hwnd HWND) (hdc HDC) {
 	r0, _, _ := syscall.Syscall(procCreateCompatibleDC.Addr(), 1, uintptr(hwnd), 0, 0)
 	hdc = HDC(r0)
 	return hdc
+}
+
+func LoadBitmapFromMemory(img image.Image) (HBITMAP, int, int, error) {
+	var buf bytes.Buffer
+	if err := bmp.Encode(&buf, img); err != nil {
+		return 0, 0, 0, err
+	}
+	size := img.Bounds().Size()
+	bmpBuf := buf.Bytes()
+	dibBmInfo := (*DIBBITMAPINFO)(unsafe.Pointer(&bmpBuf[10])) // skip first 10B in tagBITMAPFILEHEADER
+	pixels := bmpBuf[dibBmInfo.bfOffBits:]
+	h, err := CreateDIBSection(0, &dibBmInfo.BITMAPINFO, DIB_RGB_COLORS, 0, 0, 0)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	err = SetDIBits(0, h, 0, dibBmInfo.Header.Height, pixels, &dibBmInfo.BITMAPINFO, DIB_RGB_COLORS)
+	return h, size.X, size.Y, err
 }
 
 func GetObjectA(hgdiobj HANDLE, cbBuffer uintptr, object uintptr) (size uint32) {
@@ -54,9 +81,20 @@ func CreateCompatibleBitmap(hdc HDC, width, height uintptr) (hbitmap HANDLE) {
 	return HANDLE(r0)
 }
 
-func CreateDIBSection(hdc HDC, pbmi *BITMAPINFO, iUsage uint, ppvBits uintptr, hSection uint32, dwOffset uint32) (hbitmap HANDLE) {
-	r0, _, _ := syscall.Syscall6(procCreateDIBSection.Addr(), 6, uintptr(hdc), uintptr(unsafe.Pointer(pbmi)), uintptr(iUsage), ppvBits, uintptr(hSection), uintptr(dwOffset))
-	return HANDLE(r0)
+func CreateDIBSection(hdc HDC, pbmi *BITMAPINFO, iUsage uint, ppvBits uintptr, hSection uint32, dwOffset uint32) (HANDLE, error) {
+	r0, _, err := syscall.Syscall6(procCreateDIBSection.Addr(), 6, uintptr(hdc), uintptr(unsafe.Pointer(pbmi)), uintptr(iUsage), ppvBits, uintptr(hSection), uintptr(dwOffset))
+	if r0 == 0 {
+		return 0, err
+	}
+	return HANDLE(r0), nil
+}
+
+func SetDIBits(hdc HDC, hbm HBITMAP, start, cLines int32, pixels []byte, pbmi *BITMAPINFO, colorUse uint) error {
+	r0, _, err := procSetDIBits.Call(uintptr(hdc), uintptr(hbm), uintptr(start), uintptr(cLines), uintptr(unsafe.Pointer(&pixels[0])), uintptr(unsafe.Pointer(pbmi)), uintptr(colorUse))
+	if r0 == 0 {
+		return err
+	}
+	return nil
 }
 
 func BitBlt(hdc HDC, nXDest, nYDest, nWidth, nHeight int, hdcSrc HDC, nXSrc, nYSrc int, dwRop uint32) bool {
