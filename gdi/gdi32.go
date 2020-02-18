@@ -37,6 +37,7 @@ func CreateCompatibleDC(hwnd HWND) (hdc HDC) {
 	return hdc
 }
 
+// reference: https://stackoverflow.com/questions/2886831/win32-c-c-load-image-from-memory-buffer/2901465#2901465
 func LoadBitmapFromMemory(img image.Image) (HBITMAP, int, int, error) {
 	var buf bytes.Buffer
 	if err := bmp.Encode(&buf, img); err != nil {
