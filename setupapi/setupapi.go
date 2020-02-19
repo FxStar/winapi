@@ -237,3 +237,18 @@ func (hd HDevice) Write(data []byte) (int, error) {
 	err := syscall.WriteFile(syscall.Handle(hd), data, &written, nil)
 	return int(written), err
 }
+
+func (hd HDevice) WriteAll(data []byte) (int, error) {
+	total := 0
+	for total < len(data) {
+		n, err := hd.Write(data[total:])
+		if err != nil {
+			return total, err
+		}
+		if n <= 0 {
+			return total, errors.New("can't write any more")
+		}
+		total += n
+	}
+	return total, nil
+}

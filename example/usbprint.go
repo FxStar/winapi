@@ -42,7 +42,7 @@ func main() {
 		}
 		defer dev.Close()
 
-		n, err := dev.Write(payload)
+		n, err := dev.WriteAll(payload)
 		if err != nil {
 			log.Fatal(err)
 		}
