@@ -238,6 +238,12 @@ func (hd HDevice) Write(data []byte) (int, error) {
 	return int(written), err
 }
 
+func (hd HDevice) Read(p []byte) (int, error) {
+	var done uint32
+	err := syscall.ReadFile(syscall.Handle(hd), p, &done, nil)
+	return int(done), err
+}
+
 func (hd HDevice) WriteAll(data []byte) (int, error) {
 	total := 0
 	for total < len(data) {
@@ -247,6 +253,21 @@ func (hd HDevice) WriteAll(data []byte) (int, error) {
 		}
 		if n <= 0 {
 			return total, errors.New("can't write any more")
+		}
+		total += n
+	}
+	return total, nil
+}
+
+func (hd HDevice) ReadAll(p []byte) (int, error) {
+	total := 0
+	for total < len(p) {
+		n, err := hd.Read(p[total:])
+		if err != nil {
+			return total, err
+		}
+		if n <= 0 {
+			return total, errors.New("can't read any more")
 		}
 		total += n
 	}
