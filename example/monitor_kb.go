@@ -7,11 +7,16 @@ import (
 )
 
 func main() {
-	err := kbcap.MonitorKeyboard(func(line string) {
-		log.Printf("callback get line: [%s]", line)
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
+	go func() {
+		kbcap.Debug = true
+		err := kbcap.MonitorKeyboard(func(line string) {
+			log.Printf("callback get line: [%s]", line)
+		}, func(b byte) {
+
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 	select {}
 }

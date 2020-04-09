@@ -115,6 +115,7 @@ var (
 )
 
 // Virtual Keys, Standard Set
+// https://docs.microsoft.com/zh-cn/windows/win32/inputdev/virtual-key-codes
 const (
 	VK_SHIFT   = 0x10
 	VK_CONTROL = 0x11

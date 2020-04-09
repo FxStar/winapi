@@ -84,15 +84,10 @@ func GetAnyMessage() { // block
 	winapi.GetMessage(nil, 0, 0, 0)
 }
 
-const (
-	kShiftKey   = 16
-	kCapitalKey = 20
-)
-
 func CodeToChar(hookStruct *KBDLLHOOKSTRUCT) (byte, bool) {
 	keyStates, _ := winapi.GetKeyboardState()
-	keyStates[kShiftKey] = byte(winapi.GetKeyState(winapi.VK_SHIFT))
-	keyStates[kCapitalKey] = byte(winapi.GetKeyState(winapi.VK_CAPITAL))
+	keyStates[winapi.VK_SHIFT] = byte(winapi.GetKeyState(winapi.VK_SHIFT))
+	keyStates[winapi.VK_CAPITAL] = byte(winapi.GetKeyState(winapi.VK_CAPITAL))
 	var char uint16
 	n := winapi.ToAscii(hookStruct.VkCode, hookStruct.ScanCode, keyStates, &char, 0)
 	return byte(char), n == 1
@@ -101,7 +96,7 @@ func CodeToChar(hookStruct *KBDLLHOOKSTRUCT) (byte, bool) {
 var MaxUpdateInterval time.Duration = 3 * time.Second
 var Debug = false
 
-func MonitorKeyboard(callback func(string)) error {
+func MonitorKeyboard(callback func(string), codeCallback func(byte)) error {
 	var buf bytes.Buffer
 	buf.Grow(128)
 	lastUpdate := time.Now()
@@ -111,6 +106,12 @@ func MonitorKeyboard(callback func(string)) error {
 		(HOOKPROC)(func(nCode int, wparam WPARAM, lparam LPARAM) LRESULT {
 			if nCode == 0 && wparam == WM_KEYDOWN {
 				kbdstruct := (*KBDLLHOOKSTRUCT)(unsafe.Pointer(lparam))
+				if Debug {
+					log.Printf("get code %d", kbdstruct.VkCode)
+				}
+				if codeCallback != nil {
+					codeCallback(byte(kbdstruct.VkCode))
+				}
 				if b, ok := CodeToChar(kbdstruct); ok {
 					if time.Since(lastUpdate) > MaxUpdateInterval && buf.Len() > 0 {
 						buf.Reset()
@@ -142,11 +143,9 @@ func MonitorKeyboard(callback func(string)) error {
 	}
 
 	log.Printf("keyboard monitoring...")
-	go func() {
-		defer keyboardHook.UnhookWindowsHookEx()
-		for {
-			GetAnyMessage() // may block infinitely, while PeekMessage will consume more CPU or less responsive.
-		}
-	}()
+	defer keyboardHook.UnhookWindowsHookEx()
+	for { // should in the same routine as SetWindowsHookEx
+		GetAnyMessage() // may block infinitely, while PeekMessage will consume more CPU or less responsive.
+	}
 	return nil
 }
