@@ -11,6 +11,7 @@ import (
 	"unsafe"
 
 	"github.com/leibnewton/winapi"
+	"github.com/pkg/errors"
 )
 
 // String returns a human-friendly display name of the hotkey
@@ -101,8 +102,12 @@ func MonitorKeyboard(callback func(string), codeCallback func(byte)) error {
 	buf.Grow(128)
 	lastUpdate := time.Now()
 
+	mod, err := winapi.GetModuleHandle("")
+	if err != nil {
+		return errors.Wrap(err, "get module handle failed")
+	}
 	var keyboardHook HHOOK
-	keyboardHook, err := SetWindowsHookEx(WH_KEYBOARD_LL,
+	keyboardHook, err = SetWindowsHookEx(WH_KEYBOARD_LL,
 		(HOOKPROC)(func(nCode int, wparam WPARAM, lparam LPARAM) LRESULT {
 			if nCode == 0 && wparam == WM_KEYDOWN {
 				kbdstruct := (*KBDLLHOOKSTRUCT)(unsafe.Pointer(lparam))
@@ -137,9 +142,9 @@ func MonitorKeyboard(callback func(string), codeCallback func(byte)) error {
 				}
 			}
 			return keyboardHook.CallNextHookEx(nCode, wparam, lparam)
-		}), 0, 0)
+		}), HINSTANCE(mod), 0)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "set window hook failed")
 	}
 
 	log.Printf("keyboard monitoring...")
