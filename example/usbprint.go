@@ -1,12 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/leibnewton/winapi/setupapi"
 )
 
 func main() {
+	defer fmt.Scanln()
+	defer fmt.Printf("press any key to quit...")
 	hDev, err := setupapi.GetClassDevs()
 	if err != nil {
 		log.Fatal(err)

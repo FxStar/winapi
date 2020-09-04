@@ -29,6 +29,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	"github.com/leibnewton/winapi"
 	"github.com/leibnewton/winapi/winspool"
 )
 
@@ -224,11 +225,15 @@ func Open(devicePath string) (HDevice, error) {
 	if err != nil {
 		return 0, err
 	}
-	h, err := syscall.CreateFile(name, syscall.GENERIC_WRITE, syscall.FILE_SHARE_READ, nil, syscall.OPEN_ALWAYS, syscall.FILE_ATTRIBUTE_NORMAL, 0)
+	// https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers
+	// https://docs.microsoft.com/en-us/windows/win32/fileio/file-buffering
+	var dwFlagsAndAttributes uint32 = syscall.FILE_ATTRIBUTE_NORMAL | winapi.FILE_FLAG_NO_BUFFERING | winapi.FILE_FLAG_WRITE_THROUGH
+	h, err := syscall.CreateFile(name, syscall.GENERIC_WRITE, syscall.FILE_SHARE_READ, nil, syscall.OPEN_ALWAYS, dwFlagsAndAttributes, 0)
 	return HDevice(h), err
 }
 
 func (hd HDevice) Close() error {
+	// err := syscall.FlushFileBuffers(syscall.Handle(hd)) // get "Incorrect function." error
 	return syscall.CloseHandle(syscall.Handle(hd))
 }
 
