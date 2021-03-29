@@ -53,7 +53,7 @@ func main() {
 	if err != nil {
 		Fatal("OpenPrinter", err)
 	}
-	defer hPrinter.ClosePrinter()
+	defer hPrinter.ClosePrinter() // 关闭打印机时, 没打印出的页会丢弃.
 
 	dwJob, err := hPrinter.StartDoc("Printing Raw File...")
 	if err != nil {
@@ -61,6 +61,13 @@ func main() {
 	}
 	log.Printf("get job: %d", dwJob)
 	defer hPrinter.EndDoc()
+
+	err = hPrinter.SetJobCommand(dwJob, winspool.JOB_CONTROL_RETAIN)
+	if err != nil {
+		hPrinter.SetJobCommand(dwJob, winspool.JOB_CONTROL_RELEASE)
+		Fatal("retain job failed", err)
+	}
+	log.Printf("job: %d retained", dwJob)
 
 	for p := 0; p < *pageCount; p++ {
 		err = hPrinter.StartPage()

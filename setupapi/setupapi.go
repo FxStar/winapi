@@ -132,7 +132,9 @@ func (hDevs *HDEVINFO) DevicePath() string {
 }
 
 func (hDevs *HDEVINFO) GetVidPid() (vid, pid uint16, err error) {
-	_, err = fmt.Sscanf(strings.ToLower(hDevs.devicePath), `\\?\usb#vid_%04x&pid_%04x#`, &vid, &pid)
+	// case A: \\?\usb#vid_6868&pid_0500&mi_00#6&29a28943&0&0000#{28d78fad-5a12-11d1-ae5b-0000f803a8c2}
+	// case B: \\?\usb#vid_0fe6&pid_811e#38588749000935333146343453544632#{28d78fad-5a12-11d1-ae5b-0000f803a8c2}
+	_, err = fmt.Sscanf(strings.ToLower(hDevs.devicePath), `\\?\usb#vid_%04x&pid_%04x`, &vid, &pid)
 	return
 }
 
