@@ -10,7 +10,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/leibnewton/winapi"
+	"github.com/FxStar/winapi"
 	"github.com/pkg/errors"
 )
 

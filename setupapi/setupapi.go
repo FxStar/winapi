@@ -29,8 +29,8 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/leibnewton/winapi"
-	"github.com/leibnewton/winapi/winspool"
+	"github.com/FxStar/winapi"
+	"github.com/FxStar/winapi/winspool"
 )
 
 var (

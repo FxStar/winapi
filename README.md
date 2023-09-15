@@ -8,7 +8,7 @@ printing scenario.
 
 To install:
 
-    go get -u github.com/leibnewton/winapi
+    go get -u github.com/FxStar/winapi
 	
 	
 ## List

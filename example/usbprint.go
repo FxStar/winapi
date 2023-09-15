@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/leibnewton/winapi/setupapi"
+	"github.com/FxStar/winapi/setupapi"
 )
 
 func main() {

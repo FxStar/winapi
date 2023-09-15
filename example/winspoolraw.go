@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/leibnewton/winapi/winspool"
+	"github.com/FxStar/winapi/winspool"
 )
 
 var rawFile = flag.String("file", "document.raw", "file path")

@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/image/bmp"
 
-	. "github.com/leibnewton/winapi"
+	. "github.com/FxStar/winapi"
 )
 
 var (
@@ -24,6 +24,7 @@ var (
 	procCreateDIBSection       = modgdi32.NewProc("CreateDIBSection")
 	procBitBlt                 = modgdi32.NewProc("BitBlt")
 	procSetDIBits              = modgdi32.NewProc("SetDIBits")
+	procStretchBlt             = modgdi32.NewProc("StretchBlt")
 )
 
 type DIBBITMAPINFO struct {
@@ -100,5 +101,10 @@ func SetDIBits(hdc HDC, hbm HBITMAP, start, cLines int32, pixels []byte, pbmi *B
 
 func BitBlt(hdc HDC, nXDest, nYDest, nWidth, nHeight int, hdcSrc HDC, nXSrc, nYSrc int, dwRop uint32) bool {
 	r0, _, _ := syscall.Syscall9(procBitBlt.Addr(), 9, uintptr(hdc), uintptr(nXDest), uintptr(nYDest), uintptr(nWidth), uintptr(nHeight), uintptr(hdcSrc), uintptr(nXSrc), uintptr(nYSrc), uintptr(dwRop))
+	return r0 != 0
+}
+
+func StretchBlt(hdc HDC, nXDest, nYDest, nWidth, nHeight int, hdcSrc HDC, nXSrc, nYSrc, wSrc, hSrc int, dwRop uint32) bool {
+	r0, _, _ := syscall.Syscall12(procStretchBlt.Addr(), 11, uintptr(hdc), uintptr(nXDest), uintptr(nYDest), uintptr(nWidth), uintptr(nHeight), uintptr(hdcSrc), uintptr(nXSrc), uintptr(nYSrc),uintptr(wSrc), uintptr(hSrc), uintptr(dwRop),0)
 	return r0 != 0
 }

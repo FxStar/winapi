@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/leibnewton/winapi/kbcap"
+	"github.com/FxStar/winapi/kbcap"
 )
 
 func main() {

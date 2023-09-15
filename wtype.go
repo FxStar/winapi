@@ -1,7 +1,7 @@
 package winapi
 
 import (
-	"github.com/leibnewton/winapi/winspool"
+	"github.com/FxStar/winapi/winspool"
 )
 
 type (
@@ -66,15 +66,14 @@ const (
 	FALSE BOOL = false
 )
 
-//  Primary language IDs.
+// Primary language IDs.
 //
-//  WARNING: These aren't always unique.  Bosnian, Serbian & Croation for example.
+// WARNING: These aren't always unique.  Bosnian, Serbian & Croation for example.
 //
-//  It is recommended that applications test for locale names or actual LCIDs.
+// It is recommended that applications test for locale names or actual LCIDs.
 //
-//  Note that the LANG, SUBLANG construction is not always consistent.
-//  The named locale APIs (eg GetLocaleInfoEx) are recommended.
-//
+// Note that the LANG, SUBLANG construction is not always consistent.
+// The named locale APIs (eg GetLocaleInfoEx) are recommended.
 const (
 	LANG_NEUTRAL             LANGID = 0x00
 	LANG_INVARIANT           LANGID = 0x7f

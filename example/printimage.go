@@ -9,9 +9,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/leibnewton/winapi"
-	"github.com/leibnewton/winapi/gdi"
-	"github.com/leibnewton/winapi/winspool"
+	"github.com/FxStar/winapi"
+	"github.com/FxStar/winapi/gdi"
+	"github.com/FxStar/winapi/winspool"
 )
 
 var shouldCheck = flag.Bool("check", false, "check job status")
@@ -34,7 +34,8 @@ func verbPrint(format string, v ...interface{}) {
 // 1.纸张大小：40mm*30mm（2mm间隔）
 // 2.四个方向边距设置为0.
 // 3.分辨率为300dpi时，使用472*354分辨率的图片
-//   分辨率为200dpi时，使用315*236分辨率的图片
+//
+//	分辨率为200dpi时，使用315*236分辨率的图片
 func main() {
 	flag.Parse()
 	defer fmt.Scanln()
