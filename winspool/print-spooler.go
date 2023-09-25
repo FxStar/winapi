@@ -23,6 +23,7 @@ var (
 	writePrinterProc     = winspool.NewProc("WritePrinter")
 	endPagePrinterProc   = winspool.NewProc("EndPagePrinter")
 	endDocPrinterProc    = winspool.NewProc("EndDocPrinter")
+	procGetDefaultPrinterW = winspool.NewProc("GetDefaultPrinterW")
 )
 
 // DOCINFO struct.
@@ -83,4 +84,33 @@ func (hPrinter HANDLE) Write(data []byte) (int, error) {
 		return 0, err
 	}
 	return int(written), nil
+}
+
+func GetDefaultPrinter(buf *uint16, bufN *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procGetDefaultPrinterW.Addr(), 2, uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(bufN)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func Default() (string, error) {
+	b := make([]uint16, 3)
+	n := uint32(len(b))
+	err := GetDefaultPrinter(&b[0], &n)
+	if err != nil {
+		if err != syscall.ERROR_INSUFFICIENT_BUFFER {
+			return "", err
+		}
+		b = make([]uint16, n)
+		err = GetDefaultPrinter(&b[0], &n)
+		if err != nil {
+			return "", err
+		}
+	}
+	return syscall.UTF16ToString(b), nil
 }
